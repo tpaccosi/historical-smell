@@ -1,25 +1,30 @@
 # -*- coding: utf-8 -*-
-from torch import cuda
+import argparse
+import csv
+import json
+import re
+import sys
+import time
+from datasets import Dataset
+from os import path
+from packaging.version import Version
 
+import evaluate
+import numpy as np
+import pandas as pd
+import torch
 import transformers
+from torch import cuda
 from transformers import AutoTokenizer
 from transformers import DataCollatorForTokenClassification, AutoConfig
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 
-from datasets import Dataset
-import evaluate
-import pandas as pd
-import numpy as np
-import re
 
-import argparse
-import csv
-import sys
-import time
-from os import path
-import json
-
-device = 'cuda' if cuda.is_available() else 'cpu'
+device = 'cpu'
+if cuda.is_available():
+    device = 'cuda'
+elif torch.backends.mps.is_available():
+    device = 'mps'
 print(device)
 
 seed = 22
@@ -219,28 +224,53 @@ def main():
     model_name = model_checkpoint.split("/")[-1]
 
     if args.hypsearch:
-        tr_args = TrainingArguments(
-            f"{model_name}-{language}-{fold}-hyp",
-            evaluation_strategy="epoch",
-            save_strategy="epoch",
-            per_device_eval_batch_size=8,
-            warmup_ratio=0.1,
-            seed=22,
-            weight_decay=0.01
-        )
+        if Version(transformers.__version__) < Version("4.46"):
+            tr_args = TrainingArguments(
+                f"{model_name}-{language}-{fold}-hyp",
+                evaluation_strategy="epoch",
+                save_strategy="epoch",
+                per_device_eval_batch_size=8,
+                warmup_ratio=0.1,
+                seed=22,
+                weight_decay=0.01
+            )
+        else:
+            tr_args = TrainingArguments(
+                f"{model_name}-{language}-{fold}-hyp",
+                eval_strategy="epoch",
+                save_strategy="epoch",
+                per_device_eval_batch_size=8,
+                warmup_ratio=0.1,
+                seed=22,
+                weight_decay=0.01
+            )
     elif args.do_train:
-        tr_args = TrainingArguments(
-            f"{model_name}-{language}-{fold}",
-            evaluation_strategy="epoch",
-            save_strategy="epoch",
-            learning_rate=args.learning_rate,
-            per_device_train_batch_size=args.train_batch_size,
-            per_device_eval_batch_size=8,
-            num_train_epochs=args.train_epochs,
-            warmup_ratio=0.1,
-            seed=22,
-            weight_decay=0.01
-        )
+        if Version(transformers.__version__) < Version("4.46"):
+            tr_args = TrainingArguments(
+                f"{model_name}-{language}-{fold}",
+                evaluation_strategy="epoch",
+                save_strategy="epoch",
+                learning_rate=args.learning_rate,
+                per_device_train_batch_size=args.train_batch_size,
+                per_device_eval_batch_size=8,
+                num_train_epochs=args.train_epochs,
+                warmup_ratio=0.1,
+                seed=22,
+                weight_decay=0.01
+            )
+        else:
+            tr_args = TrainingArguments(
+                f"{model_name}-{language}-{fold}",
+                eval_strategy="epoch",
+                save_strategy="epoch",
+                learning_rate=args.learning_rate,
+                per_device_train_batch_size=args.train_batch_size,
+                per_device_eval_batch_size=8,
+                num_train_epochs=args.train_epochs,
+                warmup_ratio=0.1,
+                seed=22,
+                weight_decay=0.01
+            )
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
 
