@@ -10,6 +10,12 @@ then
 elif [ $language == "english" ];
 then
   model="emanjavacas/MacBERTh"
+elif [ $language == "french" ];
+then
+  model="pjox/dalembert"
+elif [ $language == "italian" ];
+then
+  model="bertoldo-all/checkpoint"
 fi
 
 if [ "$todo" == "hyperparam" ];
