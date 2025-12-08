@@ -1,4 +1,4 @@
-prepare: download unzip create_folds_single
+prepare: download unzip make_data create_folds_single
 
 download:
 	git clone git@github.com:Odeuropa/benchmarks_and_corpora.git
