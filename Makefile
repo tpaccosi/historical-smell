@@ -29,3 +29,6 @@ create_folds_single:
 	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/FR/webanno/ --output ../data/data_french --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
 	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/IT/webanno/ --output ../data/data_italian --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
 	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/NL/webanno/ --output ../data/data_dutch --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+
+create_venv:
+	python3 -m venv . venv
