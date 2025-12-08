@@ -20,9 +20,12 @@ unzip_fr:
 unzip_it:
 	cd benchmarks_and_corpora/benchmarks/IT/;unzip webanno.zip;rm -rf __MACOSX
 
+make_data:
+	mkdir data
+
 create_folds_single:
-	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/DE/webanno/ --output data_german --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
-	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/EN/webanno/ --output data_english --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
-	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/FR/webanno/ --output data_french --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
-	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/IT/webanno/ --output data_italian --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
-	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/NL/webanno/ --output data_dutch --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/DE/webanno/ --output ../data/data_german --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/EN/webanno/ --output ../data/data_english --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/FR/webanno/ --output ../data/data_french --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/IT/webanno/ --output ../data/data_italian --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/NL/webanno/ --output ../data/data_dutch --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
