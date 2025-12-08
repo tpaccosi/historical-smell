@@ -85,14 +85,19 @@ def replace_punctuation(row):
 
 
 def read_split_fold(split='train', fold="0", lang="english", label_dict=None):
-    #change the path template as needed.
-    path = 'data_{}/folds_{}_{}.tsv'.format(lang, fold, split)
+    # change the path template as needed.
+    if os.path.exists(f'../data/data_{lang}'):
+        path = '../data/data_{}/folds_{}_{}.tsv'.format(lang, fold, split)
+    elif os.path.exists(f"data_{lang}"):
+        path = 'data_{}/folds_{}_{}.tsv'.format(lang, fold, split)
+    else:
+        raise FileNotFoundError(f"no folds data found for language {lang}. Check folds have been created.")
     try:
         data = pd.read_csv(path, sep='\t', skip_blank_lines=True,
                            encoding='utf-8', engine='python', quoting=csv.QUOTE_NONE,
                            names=['Document', 'Sentence-Token', 'Chars', 'Word', 'Tag', 'Empty'], header=None)
-    except:
-        print(f"Cannot read the file {path}")
+    except BaseException as err:
+        print(f"Cannot read the file {path} - error: {err}")
         if split == "train":
             sys.exit()
         return None, None
@@ -100,7 +105,7 @@ def read_split_fold(split='train', fold="0", lang="english", label_dict=None):
     time.sleep(5)
     data.drop('Empty', inplace=True, axis=1)
 
-    #For the reusability purposes, we still extract the label ids from the training data.
+    # For the reusability purposes, we still extract the label ids from the training data.
     data['Tag'] = data.apply(lambda row: to_clean_label(row), axis=1)
 
     print("Number of tags: {}".format(len(data.Tag.unique())))
