@@ -26,28 +26,34 @@ then
   train_batch_size=8
   train_epochs=14
 
-elif [ $language == "english" ];
+elif [ "$language" == "english" ];
 then
   model="emanjavacas/MacBERTh"
   learning_rate=5e-05
   train_batch_size=16
   train_epochs=8
 
-elif [ $language == "french" ];
+elif [ "$language" == "french" ];
 then
   model="pjox/dalembert"
 
-elif [ $language == "german_ghisbert" ];
+elif [ "$language" == "german_ghisbert" ];
 then
   model="christinbeck/GHisBERT"
-  language = "german"
+  language="german"
+  learning_rate=3e-05
+  train_batch_size=32
+  train_epochs=8
 
-elif [ $language == "german_bert" ];
+elif [ "$language" == "german_bert" ];
 then
-  model="bert-base-historical-german-rw-cased"
-  language = "german"
+  model="redewiedergabe/bert-base-historical-german-rw-cased"
+  language="german"
+  learning_rate=2e-05
+  train_batch_size=8
+  train_epochs=7
 
-elif [ $language == "italian" ];
+elif [ "$language" == "italian" ];
 then
   model="bertoldo-all/checkpoint"
 fi
