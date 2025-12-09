@@ -1,4 +1,4 @@
-prepare: download unzip make_data create_folds_single
+prepare: download unzip make_data create_folds_single create_venv
 
 download:
 	git clone git@github.com:Odeuropa/benchmarks_and_corpora.git
@@ -32,3 +32,4 @@ create_folds_single:
 
 create_venv:
 	python3 -m venv . venv
+
