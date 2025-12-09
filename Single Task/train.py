@@ -117,7 +117,7 @@ def read_split_fold(split='train', fold="0", lang="english", label_dict=None):
         labels_to_ids = {k: v for v, k in enumerate(data.Tag.unique())}
     else:
         labels_to_ids = label_dict
-    
+
     ids_to_labels = {v: k for v, k in enumerate(data.Tag.unique())}
 
     data = data.astype({"Word": str})
@@ -281,7 +281,7 @@ def main():
     data_collator = DataCollatorForTokenClassification(tokenizer)
 
     metric = evaluate.load("seqeval")
-    
+
     def compute_metrics(p):
         predictions, labels = p
         predictions = np.argmax(predictions, axis=2)
