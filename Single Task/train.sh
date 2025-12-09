@@ -9,7 +9,7 @@ echo "language: #$language#"
 
 if [ "$language" == "" ];
 then
-	echo "second argument must be dutch, english, french, german or italian"
+	echo "second argument must be dutch, english, french, german_ghisbert german_bert or italian"
 	exit
 fi
 
@@ -25,16 +25,29 @@ then
   learning_rate=3e-05
   train_batch_size=8
   train_epochs=14
-elif [ "$language" == "english" ];
+
+elif [ $language == "english" ];
 then
   model="emanjavacas/MacBERTh"
   learning_rate=5e-05
   train_batch_size=16
   train_epochs=8
-elif [ "$language" == "french" ];
+
+elif [ $language == "french" ];
 then
   model="pjox/dalembert"
-elif [ "$language" == "italian" ];
+
+elif [ $language == "german_ghisbert" ];
+then
+  model="christinbeck/GHisBERT"
+  language = "german"
+
+elif [ $language == "german_bert" ];
+then
+  model="bert-base-historical-german-rw-cased"
+  language = "german"
+
+elif [ $language == "italian" ];
 then
   model="bertoldo-all/checkpoint"
 fi
