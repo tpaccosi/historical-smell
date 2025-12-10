@@ -5,7 +5,6 @@ todo="hyperparam"
 language="dutch"
 todo=$1
 language=$2
-echo "language: #$language#"
 
 if [ "$language" == "" ];
 then
@@ -57,6 +56,8 @@ elif [ "$language" == "italian" ];
 then
   model="bertoldo-all/checkpoint"
 fi
+
+echo "language: $language\nmodel: $model"
 
 if [ "$todo" == "hyperparam" ];
 then

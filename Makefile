@@ -30,6 +30,13 @@ create_folds_single:
 	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/IT/webanno/ --output ../data/data_italian --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
 	cd Single\ Task; python3 create_folds.py --folder ..//benchmarks_and_corpora/benchmarks/NL/webanno/ --output ../data/data_dutch --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
 
+create_folds_updated_single:
+	cd Single\ Task; python3 create_folds_updated.py --folder ..//benchmarks_and_corpora/benchmarks/DE/webanno/ --output ../data_updated/data_german --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds_updated.py --folder ..//benchmarks_and_corpora/benchmarks/EN/webanno/ --output ../data_updated/data_english --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds_updated.py --folder ..//benchmarks_and_corpora/benchmarks/FR/webanno/ --output ../data_updated/data_french --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds_updated.py --folder ..//benchmarks_and_corpora/benchmarks/IT/webanno/ --output ../data_updated/data_italian --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+	cd Single\ Task; python3 create_folds_updated.py --folder ..//benchmarks_and_corpora/benchmarks/NL/webanno/ --output ../data_updated/data_dutch --tasktype BERT --tags Smell\\_Word,Smell\\_Source,Quality,Circumstances,Location,Perceiver,Time,Evoked\\_Odorant,Effect,Odour\\_Carrier
+
 create_venv:
 	python3 -m venv . venv
 
