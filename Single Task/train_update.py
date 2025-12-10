@@ -2,18 +2,15 @@
 import argparse
 import csv
 import json
-import os
 import re
 import sys
 import time
 from datasets import Dataset
 from os import path
-from packaging.version import Version
 
 import evaluate
 import numpy as np
 import pandas as pd
-import torch
 import transformers
 from torch import cuda
 from transformers import AutoTokenizer
@@ -21,11 +18,7 @@ from transformers import DataCollatorForTokenClassification, AutoConfig
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 
 
-device = 'cpu'
-if cuda.is_available():
-    device = 'cuda'
-elif torch.backends.mps.is_available():
-    device = 'mps'
+device = 'cuda' if cuda.is_available() else 'cpu'
 print(device)
 
 seed = 22
@@ -42,22 +35,22 @@ model_checkpoint = "EMBEDDIA/sloberta-> slovene
 """
 
 
-def sentence_num(row):
-    sentenceNum = row['Sentence-Token'].split("-")[0]
-    return sentenceNum
+def get_sentence_num(row: Dict[str, any]):
+    sentence_num = row['Sentence-Token'].split("-")[0]
+    return sentence_num
 
 
-def to_label_id(row, id_dict):
+def to_label_id(row: Dict[str, any], id_dict: Dict[str, any]):
     label = row['Tag']
     if label not in id_dict:
         label = 'O'
 
-    labelId = id_dict[label]
-    return labelId
+    label_id = id_dict[label]
+    return label_id
 
 
-def to_clean_label(row):
-    clean_tag = row['Tag'].replace("\\", "").replace("\_","_")
+def to_clean_label(row: Dict[str, any]):
+    clean_tag = row['Tag'].replace("\\", "").replace("\\_", "_")
     clean_tag = clean_tag.split('|')[0]
     clean_tag = clean_tag.replace("B-I-", "B-")
     return clean_tag
@@ -65,13 +58,15 @@ def to_clean_label(row):
 
 def replace_punctuation(row):
     """Error case in Italian: 'bianco', '-', 'gialliccio' -> 'bianco-gialliccio'
-    Bert tokenizer uses also punctuations to separate the tokens along with the whitespaces, although we provide the
-    sentences with is_split_into_words=True. Therefore, if there is a punctuation in a single word in a CONLL file
-    we cannot 100% guarantee the exact same surface realization (necessary to decide on a single label for a single word)
-    after classification for that specific word:
-    e.g., bianco-gialliccio becomes 3 separate CONLL lines: 1) bianco 2) - 3) gialliccio
-    Things could have been easier and faster if we were delivering simple sentences as output instead of the exact
-    CONLL file structure given as input. """
+    Bert tokenizer uses also punctuations to separate the tokens along with the whitespaces,
+    although we provide the sentences with is_split_into_words=True. Therefore, if there is
+    punctuation in a single word in a CONLL file we cannot 100% guarantee the exact same
+    surface realization (necessary to decide on a single label for a single word) after
+    classification for that specific word: e.g., bianco-gialliccio becomes 3 separate CONLL
+    lines: 1) bianco 2) - 3) gialliccio
+
+    Things could have been easier and faster if we were delivering simple sentences as output
+    instead of the exact CONLL file structure given as input. """
     word = row['Word'].strip()
     if len(word) > 1:
         word = re.sub(r'[^a-zA-Z0-9]', '', word)
@@ -85,27 +80,22 @@ def replace_punctuation(row):
   7 Labels: ['Smell_Word', 'Smell_Source', 'Quality', 'Location', 'Odour_Carrier', 'Evoked_Odorant', 'Time']"""
 
 
-def read_split_fold(data_dir: str, split='train', fold="0", lang="english", label_dict=None):
+def read_split_fold(split: str = 'train', fold: str = "0", lang: str = "english",
+                    label_dict: Dict[str, any] = None):
     # change the path template as needed.
-    if os.path.exists(f'{data_dir}/data_{lang}'):
-        fold_path = f'{data_dir}/data_{lang}/folds_{fold}_{split}.tsv'
-    elif os.path.exists(f"data_{lang}"):
-        fold_path = f'data_{lang}/folds_{fold}_{split}.tsv'
-    else:
-        raise FileNotFoundError(f"no folds data found for language {lang}. Check folds have been created.")
+    fold_path = 'data_{}/folds_{}_{}.tsv'.format(lang, fold, split)
     try:
         data = pd.read_csv(fold_path, sep='\t', skip_blank_lines=True,
                            encoding='utf-8', engine='python', quoting=csv.QUOTE_NONE,
-                           names=['Document', 'Sentence-Token', 'Chars', 'Word', 'Tag'], header=None)
+                           names=['Document', 'Sentence-Token', 'Chars', 'Word', 'Tag', 'Empty'], header=None)
     except BaseException as err:
-        print(f"Cannot read the file {fold_path} - error: {err}")
+        print(f"Cannot read the file {fold_path}: {err}")
         if split == "train":
             sys.exit()
         return None, None
 
-    # time.sleep(5)
-    if 'Empty' in data.columns:
-        data.drop('Empty', inplace=True, axis=1)
+    time.sleep(5)
+    data.drop('Empty', inplace=True, axis=1)
 
     # For the reusability purposes, we still extract the label ids from the training data.
     data['Tag'] = data.apply(lambda row: to_clean_label(row), axis=1)
@@ -118,14 +108,14 @@ def read_split_fold(data_dir: str, split='train', fold="0", lang="english", labe
         labels_to_ids = {k: v for v, k in enumerate(data.Tag.unique())}
     else:
         labels_to_ids = label_dict
-
+    
     ids_to_labels = {v: k for v, k in enumerate(data.Tag.unique())}
 
     data = data.astype({"Word": str})
 
     data['Word'] = data.apply(lambda row: replace_punctuation(row), axis=1)
     data['Tag'] = data.apply(lambda row: to_label_id(row, labels_to_ids), axis=1)
-    data['Num'] = data.apply(lambda row: sentence_num(row), axis=1)
+    data['Num'] = data.apply(lambda row: get_sentence_num(row), axis=1)
 
     # Important point is that we need unique document+Sentence-Token
     data = data.astype({"Num": int})
@@ -140,8 +130,10 @@ def read_split_fold(data_dir: str, split='train', fold="0", lang="english", labe
     return mergeddf, labels_to_ids, ids_to_labels
 
 
-def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True):
-    tokenized_inputs = tokenizer(examples["sentence"], max_length=512, truncation=True, is_split_into_words=True)
+def tokenize_and_align_labels(examples: Dict[str, any], tokenizer: AutoTokenizer,
+                              label_all_tokens: bool = True):
+    tokenized_inputs = tokenizer(examples["sentence"], max_length=512, truncation=True,
+                                 is_split_into_words=True)
 
     labels = []
     for i, label in enumerate(examples["word_labels"]):
@@ -149,15 +141,15 @@ def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True):
         previous_word_idx = None
         label_ids = []
         for word_idx in word_ids:
-            # Special tokens have a word id that is None. We set the label to -100 so they are automatically
-            # ignored in the loss function.
+            # Special tokens have a word id that is None. We set the label to -100 so
+            # they are automatically ignored in the loss function.
             if word_idx is None:
                 label_ids.append(-100)
             # We set the label for the first token of each word.
             elif word_idx != previous_word_idx:
                 label_ids.append(label[word_idx])
-            # For the other tokens in a word, we set the label to either the current label or -100, depending on
-            # the label_all_tokens flag.
+            # For the other tokens in a word, we set the label to either the current
+            # label or -100, depending on the label_all_tokens flag.
             else:
                 label_ids.append(label[word_idx] if label_all_tokens else -100)
             previous_word_idx = word_idx
@@ -181,7 +173,6 @@ def main():
     parser.add_argument("--lang", help="Languages: english,german, slovene, dutch, multilingual, french, italian",
                         default="english")
     parser.add_argument("--fold", help="Fold Name", default="0")
-    parser.add_argument("--data_dir", help="Data Dir")
     parser.add_argument("--hypsearch", help="Flag for Hyperparameter Search", action='store_true')
     parser.add_argument("--do_train", help="To train the model", action='store_true')
     parser.add_argument("--do_test", help="To test the model", action='store_true')
@@ -189,16 +180,13 @@ def main():
     parser.add_argument("--train_batch_size", type=int, help="Training batch size.", default=4)
     parser.add_argument("--train_epochs", type=int, help="Training epochs.", default=3)
     parser.add_argument("--model", action='store', default="bert-base-multilingual-uncased",
-                        help="Model Checkpoint to fine tune. If none is given, bert-base-multilingual-uncased will be used.")
+                        help=("Model Checkpoint to fine tune. If none is given, "
+                              "bert-base-multilingual-uncased will be used."))
 
     args = parser.parse_args()
 
     model_checkpoint = args.model
     fold = str(args.fold)
-    data_dir = args.data_dir
-    if data_dir is None:
-        raise ValueError(f"Must give a data directory using the --data_dir argument.")
-    print(f"data_dir: #{data_dir}#")
     language = str(args.lang).strip().lower()
     tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
     assert isinstance(tokenizer, transformers.PreTrainedTokenizerFast)
@@ -215,14 +203,14 @@ def main():
     ids_to_labels = config.id2label
 
     def model_init():
-        m = AutoModelForTokenClassification.from_pretrained(model_checkpoint, config=config)
-        m.to(device)
-        return m
+        model = AutoModelForTokenClassification.from_pretrained(model_checkpoint, config=config)
+        model.to(device)
+        return model
 
     if args.hypsearch or args.do_train:
-        trn, labels_to_ids, ids_to_labels = read_split_fold(data_dir=data_dir, fold=fold, lang=language)
+        trn, labels_to_ids, ids_to_labels = read_split_fold(fold=fold, lang=language)
         train_dataset = Dataset.from_pandas(trn, split="train")
-        val, _, _ = read_split_fold(data_dir=data_dir, fold=fold, lang=language, split="dev", label_dict=labels_to_ids)
+        val, _, _ = read_split_fold(fold=fold, lang=language, split="dev", label_dict=labels_to_ids)
         val_dataset = Dataset.from_pandas(val, split="validation")
 
         print(labels_to_ids)
@@ -236,58 +224,35 @@ def main():
     model_name = model_checkpoint.split("/")[-1]
 
     if args.hypsearch:
-        if Version(transformers.__version__) < Version("4.46"):
-            tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}-hyp",
-                evaluation_strategy="epoch",
-                save_strategy="epoch",
-                per_device_eval_batch_size=8,
-                warmup_ratio=0.1,
-                seed=22,
-                weight_decay=0.01
-            )
-        else:
-            tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}-hyp",
-                eval_strategy="epoch",
-                save_strategy="epoch",
-                per_device_eval_batch_size=8,
-                warmup_ratio=0.1,
-                seed=22,
-                weight_decay=0.01
-            )
+        tr_args = TrainingArguments(
+            f"{model_name}-{language}-{fold}-hyp",
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+            per_device_eval_batch_size=8,
+            warmup_ratio=0.1,
+            seed=22,
+            weight_decay=0.01
+        )
     elif args.do_train:
-        if Version(transformers.__version__) < Version("4.46"):
-            tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}",
-                evaluation_strategy="epoch",
-                save_strategy="epoch",
-                learning_rate=args.learning_rate,
-                per_device_train_batch_size=args.train_batch_size,
-                per_device_eval_batch_size=8,
-                num_train_epochs=args.train_epochs,
-                warmup_ratio=0.1,
-                seed=22,
-                weight_decay=0.01
-            )
-        else:
-            tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}",
-                eval_strategy="epoch",
-                save_strategy="epoch",
-                learning_rate=args.learning_rate,
-                per_device_train_batch_size=args.train_batch_size,
-                per_device_eval_batch_size=8,
-                num_train_epochs=args.train_epochs,
-                warmup_ratio=0.1,
-                seed=22,
-                weight_decay=0.01
-            )
+        tr_args = TrainingArguments(
+            f"{model_name}-{language}-{fold}",
+            evaluation_strategy="epoch",
+            save_strategy="epoch",
+            learning_rate=args.learning_rate,
+            per_device_train_batch_size=args.train_batch_size,
+            per_device_eval_batch_size=8,
+            num_train_epochs=args.train_epochs,
+            warmup_ratio=0.1,
+            seed=22,
+            weight_decay=0.01
+        )
+    else:
+        raise ValueError
 
     data_collator = DataCollatorForTokenClassification(tokenizer)
 
     metric = evaluate.load("seqeval")
-
+    
     def compute_metrics(p):
         predictions, labels = p
         predictions = np.argmax(predictions, axis=2)
@@ -352,7 +317,7 @@ def main():
 
     if args.do_test:
         print("TEST RESULTS")
-        test, _, _ = read_split_fold(data_dir=data_dir, split="test", label_dict=labels_to_ids, lang=language, fold=fold)
+        test, _, _ = read_split_fold(split="test", label_dict=labels_to_ids, lang=language, fold=fold)
         test_dataset = Dataset.from_pandas(test, split="test")
         tokenized_test = test_dataset.map(lambda x: tokenize_and_align_labels(x, tokenizer),
                                           batched=True)

@@ -150,7 +150,9 @@ def extract_text_id(root: str):
    """
     _, fname = os.path.split(root)
     basename, _ = os.path.splitext(fname)
-    return re.sub(r'\W', '_', basename)
+    text_id = re.sub(r'\W', '_', basename)
+    # print(f"root: {root}\nfname: {fname}\nbasename: {basename}\ntext_id: {text_id}\n")
+    return text_id
 
 
 def read_anno_files(anno_path: str, tags: List[str]):
@@ -361,6 +363,12 @@ def make_anno_tsv_line(anno: Annotation, prev_labels: List[Label],
                         tag = f'I-{label.tag}'
             tag = tag.replace('\\', '')
             tags.append(tag)
+            break
+    if len(tags_columns) == 1:
+        tags = tags[:1]
+    if len(tags_columns) > 1:
+        assert len(tags_columns) == len(tags), (f"Number of tags ({len(tags)}) is different from "
+                                                f"number of tags columns ({len(tags_columns)})")
     # if any(tag != 'O' for tag in tags):
     #     print(f"tags: {tags}")
     tag_string = '\t'.join(tags)
