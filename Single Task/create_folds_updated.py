@@ -32,6 +32,24 @@ class FoldConfig:
 
 
 @dataclass
+class Label:
+    """
+    Represents a single label of a token's annotation.
+
+    See https://webanno.github.io/webanno/releases/3.6.11/docs/user-guide.html#_disambiguation_ids
+    for explanation and examples.
+
+    Attributes:
+        tag: the tag corresponding to a class in the tag set
+        disambiguation_id: an integer indicating which tokens
+                in a multi-token spans belong to the same span
+                or that there are stacked annotations (one token
+                is annotated with multiple tags)
+    """
+    tag: str
+    disambiguation_id: Union[int, None]
+
+@dataclass
 class Annotation:
     """
     Represents a single token's annotation from a WebAnno TSV line.
@@ -42,19 +60,18 @@ class Annotation:
         token_idx (str): The 1-based index of the token in the sentence.
         char_range (str): The character start and end index (e.g., '10-15').
         token (str): The text of the token.
-        label (str): The extracted linguistic label (e.g., 'Smell\\_Word', 'O').
-        disambiguation_id (int): A disambiguation ID if present in the WebAnno label.
+        label (Label): The extracted linguistic label (e.g., 'Smell\\_Word', 'O') and
+                disambiguation_ids (if any).
    """
     text_id: str
     sent_idx: str
     token_idx: str
     char_range: str
     token: str
-    label: str
-    disambiguation_id: int
+    labels: List[Label]
 
 
-def parse_label(label: str, tags: List[str]):
+def parse_label_string(label_string: str, tags: List[str]):
     """
    Parses a WebAnno label string to extract the primary label and disambiguation ID.
 
@@ -62,29 +79,35 @@ def parse_label(label: str, tags: List[str]):
    disambiguation IDs in brackets (e.g., 'Label1|Label2[1]').
 
    Args:
-       label (str): The raw label string from the WebAnno TSV file.
+       label_string (str): The raw label string from the WebAnno TSV file.
        tags (List[str]): A list of target tags to filter for.
 
    Returns:
        Tuple[str, Union[int, None]]: The filtered label ('O' if no match) and the
            disambiguation ID (int or None).
    """
-    if label == '_':
-        return 'O', None
-    labels = label.split('|')
-    parsed_labels = []
-    for label in labels:
-        if m := re.search(r"(.*)\[(\d+)]", label):
-            label = m.group(1)
+    if label_string == '_':
+        return [Label('O', None)]
+    label_strings = label_string.split('|')
+    labels = []
+    for label_string in label_strings:
+        if m := re.search(r"(.*)\[(\d+)]", label_string):
+            tag = m.group(1)
             disambiguation_id = int(m.group(2))
         else:
+            tag = label_string
             disambiguation_id = None
-        parsed_labels.append((label, disambiguation_id))
-    for tag in tags:
-        for label, disambiguation_id in parsed_labels:
-            if tag == label:
-                return label, disambiguation_id
-    return 'O', None
+        label = Label(tag, disambiguation_id)
+        if label.tag in tags:
+            # only keep labels that are in the tags list
+            # (ignore other categories)
+            labels.append(label)
+    # sort the labels by their order in the tags list
+    # in the single task case, this determines which single label will be used
+    labels.sort(key=lambda x: tags.index(x.tag))
+    if len(labels) == 0:
+        return [Label('O', None)]
+    return labels
 
 
 def read_anno_file(text_id: str, anno_file: str, tags: List[str]):
@@ -99,8 +122,6 @@ def read_anno_file(text_id: str, anno_file: str, tags: List[str]):
    Yields:
        Annotation: An Annotation object for each token with a valid sentence/token index.
 
-   Raises:
-       ValueError: If an extracted label does not match the provided tags.
    """
     with open(anno_file, 'rt') as fh:
         for line in fh:
@@ -109,11 +130,10 @@ def read_anno_file(text_id: str, anno_file: str, tags: List[str]):
             if re.match(r"^\d+-\d+\t\d+-\d+\t\S+\t\S+\t", line.strip('\n')):
                 sent_token, char_range, token, label_string, *rest = line.strip('\n').split('\t')
                 sent_idx, token_idx = [int(x) for x in sent_token.split('-')]
-                # remove specification from label
-                label, disambiguation_id = parse_label(label_string, tags)
-                if label is None:
-                    raise ValueError(f"Extracted labels do not match tags set in file {anno_file}: {label_string}")
-                annotation = Annotation(text_id, sent_idx, token_idx, char_range, token, label, disambiguation_id)
+                # extract tags and disambiguation IDs from label string
+                labels = parse_label_string(label_string, tags)
+                annotation = Annotation(text_id, sent_idx, token_idx, char_range, token,
+                                        labels)
                 yield annotation
     return None
 
@@ -188,18 +208,18 @@ def check_text_annos(text_annos: Dict[str, List[Annotation]]):
     return None
 
 
-def filter_annotations(annos: List[Annotation], label: str = 'Smell\\_Word') -> List[Annotation]:
+def filter_annotations(annos: List[Annotation], tag: str = 'Smell\\_Word') -> List[Annotation]:
     """
    Filters a list of annotations, keeping only those that match a specified label.
 
    Args:
        annos (List[Annotation]): The list of annotations to filter.
-       label (str): The target label to keep. Defaults to 'Smell\\_Word'.
+       tag (str): The target tag to keep. Defaults to 'Smell\\_Word'.
 
    Returns:
        List[Annotation]: The filtered list of annotations.
    """
-    return [anno for anno in annos if anno.label == label]
+    return [anno for anno in annos if tag in anno.label.tags]
 
 
 def split_annos(num_folds: int, text_annos: Dict[str, any], seed: int):
@@ -232,7 +252,8 @@ def split_annos(num_folds: int, text_annos: Dict[str, any], seed: int):
     # step 3: count smell words per text and in total
     text_label_freq = defaultdict(Counter)
     for text_id in text_annos:
-        text_label_freq[text_id] = Counter([anno.label for anno in text_annos[text_id]])
+        text_tags = [label.tag for anno in text_annos[text_id] for label in anno.labels]
+        text_label_freq[text_id] = Counter(text_tags)
     total_sw_count = sum(text_label_freq[text_id]['Smell\\_Word'] for text_id in text_label_freq)
     # step 4: calculate smell words per fold
     print(f"num_folds: {num_folds}")
@@ -259,33 +280,29 @@ def split_annos(num_folds: int, text_annos: Dict[str, any], seed: int):
     return folds
 
 
-#############
-# print files
-#############
 def get_tags_columns(tags: List[str], task_type: str):
     """
    Determines the structure of the output columns based on the `task_type`.
 
    Args:
        tags (List[str]): The list of all target tags.
-       task_type (str): The desired output format ('BERT' or 'MULTITASK').
+       task_type (str): The desired output format ('SINGLETASK' or 'MULTITASK').
 
    Returns:
        List[List[str]]: A list defining the tag structure for the output.
-           - 'BERT': [['Tag1', 'Tag2', ...]] (All tags in one column).
+           - 'SINGLETASK': [['Tag1', 'Tag2', ...]] (All tags in one column).
            - 'MULTITASK': [['Tag1'], ['Tag2'], ...] (Each tag in a separate column).
 
    Raises:
-       ValueError: If `task_type` is not 'BERT' or 'MULTITASK'.
+       ValueError: If `task_type` is not 'SINGLETASK' or 'MULTITASK'.
    """
     tags_columns = []
-    if task_type == "BERT":
+    if task_type == 'SINGLETASK':
         tags_columns.append(tags)
-
     elif task_type == "MULTITASK":
         tags_columns.extend([[tag] for tag in tags])
     else:
-        raise ValueError(f"task_type must be one of {'BERT', 'MULTITASK'}, not {task_type}.")
+        raise ValueError(f"task_type must be one of {'SINGLETASK', 'MULTITASK'}, not {task_type}.")
     return tags_columns
 
 
@@ -309,7 +326,8 @@ def assign_folds(test_idx: int, dev_idx: int, folds: List[List[Annotation]]):
     return test_fold, dev_fold, train_fold
 
 
-def make_anno_tsv_line(anno: Annotation, prev_label: str, prev_dis_id: Union[int, None]):
+def make_anno_tsv_line(anno: Annotation, prev_labels: List[Label],
+                       tags_columns: List[List[str]]):
     """
    Converts an Annotation object into a Bi-I-O tagged TSV line (IOB2 format).
 
@@ -318,27 +336,39 @@ def make_anno_tsv_line(anno: Annotation, prev_label: str, prev_dis_id: Union[int
 
    Args:
        anno (Annotation): The current Annotation object.
-       prev_label (str): The label of the *previous* token in the sentence.
-       prev_dis_id (Union[int, None]): The disambiguation ID of the *previous* token.
+       prev_labels (List[Label]): The list of labels of the *previous* token in the sentence.
+       tags_columns (List[List[str]]) A list of columns with per column the tags the should
+            go in that column.
 
    Returns:
        str: A tab-separated string representing the IOB2-tagged annotation line.
    """
     sent_token = f"{anno.sent_idx}-{anno.token_idx}"
-    if anno.label == 'O':
-        tag = anno.label
-    elif anno.label != prev_label:
-        tag = f'B-{anno.label}'
-    elif anno.label == prev_label and anno.disambiguation_id != prev_dis_id:
-        tag = f'B-{anno.label}'
-    else:
-        tag = f'I-{anno.label}'
-    tag = tag.replace('\\', '')
-    return "\t".join([anno.text_id, sent_token, anno.char_range, anno.token, tag])
+    tags = []
+    for tag_column in tags_columns:
+        for label in anno.labels:
+            if label == 'O' or label.tag not in tag_column:
+                tag = 'O'
+            else:
+                prev_token_tag = [prev_label for prev_label in prev_labels if prev_label.tag == label.tag]
+                if len(prev_token_tag) == 0:
+                    tag = f'B-{label.tag}'
+                else:
+                    prev_token_tag = prev_token_tag[0]
+                    if label.disambiguation_id != prev_token_tag.disambiguation_id:
+                        tag = f'B-{label.tag}'
+                    else:
+                        tag = f'I-{label.tag}'
+            tag = tag.replace('\\', '')
+            tags.append(tag)
+    # if any(tag != 'O' for tag in tags):
+    #     print(f"tags: {tags}")
+    tag_string = '\t'.join(tags)
+    return "\t".join([anno.text_id, sent_token, anno.char_range, anno.token, tag_string])
 
 
-def write_annos(output_path: str, fold_num: int,
-                fold_annos: List[Annotation], fold_type: str):
+def write_annos(output_path: str, fold_num: int, fold_annos: List[Annotation],
+                fold_type: str, tags_columns: List[List[str]]):
     """
    Writes a list of annotations to a single output TSV file in IOB2 format.
 
@@ -347,22 +377,21 @@ def write_annos(output_path: str, fold_num: int,
        fold_num (int): The current fold number (for filename).
        fold_annos (List[Annotation]): The annotations to write (train, dev, or test set).
        fold_type (str): The type of the fold ('train', 'dev', or 'test').
+       tags_columns (List[List[str]]): The list of columns and per columns which tags it
+            should contain.
    """
     output_file = os.path.join(output_path, f"folds_{fold_num}_{fold_type}.tsv")
     with open(output_file, 'wt') as fh:
         prev_sent_idx = None
-        prev_label = None
-        prev_dis_id = None
+        prev_labels = []
         for anno in fold_annos:
             if prev_sent_idx is not None and anno.sent_idx != prev_sent_idx:
                 fh.write("\n")
-                prev_label = None
-                prev_dis_id = None
-            line = make_anno_tsv_line(anno, prev_label, prev_dis_id)
+                prev_labels = []
+            line = make_anno_tsv_line(anno, prev_labels, tags_columns)
             fh.write(f"{line}\n")
             prev_sent_idx = anno.sent_idx
-            prev_label = anno.label
-            prev_dis_id = anno.disambiguation_id
+            prev_labels = anno.labels
 
 
 def main():
@@ -387,6 +416,8 @@ def main():
 
     anno_path = args.folder
     task_type = args.tasktype
+    if task_type == 'BERT':
+        task_type = 'SINGLETASK'
     folds_number = 5
 
     tags = args.tags.split(",")
@@ -414,9 +445,9 @@ def main():
     for fold_num, pair in enumerate(testdev):
         test_idx, dev_idx = pair
         test_annos, dev_annos, train_annos = assign_folds(test_idx, dev_idx, folds)
-        write_annos(output_path, fold_num, test_annos, fold_type='test')
-        write_annos(output_path, fold_num, dev_annos, fold_type='dev')
-        write_annos(output_path, fold_num, train_annos, fold_type='train')
+        write_annos(output_path, fold_num, test_annos, fold_type='test', tags_columns=tags_columns)
+        write_annos(output_path, fold_num, dev_annos, fold_type='dev', tags_columns=tags_columns)
+        write_annos(output_path, fold_num, train_annos, fold_type='train', tags_columns=tags_columns)
 
 
 if __name__ == "__main__":
