@@ -10,7 +10,7 @@ from transformers import Trainer
 BLOCK_SIZE = 128
 
 
-def make_trainer(model, lm_dataset, tokenizer, data_collator, output_dir: str):
+def make_trainer(model, lm_dataset, tokenizer, data_collator, output_dir: str, save_strategy="steps"):
     batch_size = 64
     # Show the training loss with every epoch
     logging_steps = len(lm_dataset["train"]) // batch_size
@@ -26,6 +26,7 @@ def make_trainer(model, lm_dataset, tokenizer, data_collator, output_dir: str):
         per_device_eval_batch_size=batch_size,
         push_to_hub=False,
         fp16=False,  # doesn't work with mps / Apple M1?
+        save_strategy=save_strategy,
         logging_steps=logging_steps,
     )
 

@@ -7,9 +7,11 @@ def main():
     nl_texts = nl_texts.train_test_split(test_size=0.2)
     tokenizer, model = prepare_model_and_tokenizer('emanjavacas/GysBERT')
     lm_dataset, data_collator = prepare_dataset(tokenizer, nl_texts)
-    trainer = make_trainer(model, lm_dataset, tokenizer, data_collator, output_dir='./models/pretrain/nl_model')
+    trainer = make_trainer(model, lm_dataset, tokenizer, data_collator, output_dir='./models/pretrain/nl_model',
+                           save_strategy='no')
 
     trainer.train()
+    trainer.save_model()
 
 
 if __name__ == "__main__":
