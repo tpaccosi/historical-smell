@@ -1,6 +1,6 @@
 from datasets import load_dataset
 
-from pretraining.pretrain import prepare_model_and_tokenizer, prepare_dataset, make_trainer
+from hist_smell.pretraining.pretrain import prepare_model_and_tokenizer, prepare_dataset, make_trainer
 
 def main():
     nl_texts = load_dataset(path='./data/pretrain/data_dutch/', data_files='texts_dutch.csv.gz', sep='\t', split='train')

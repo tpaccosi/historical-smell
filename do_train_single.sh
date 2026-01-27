@@ -1,9 +1,9 @@
 #!/bin/bash
 
-todo="train"
-todo="hyperparam"
+phase="train"
+phase="hyperparam"
 language="dutch"
-todo=$1
+phase=$1
 language=$2
 task_type=$3
 
@@ -13,19 +13,19 @@ then
 	exit
 fi
 
-if [ "$todo" != "hyperparam" ] && [ "$todo" != "train" ];
+if [ "$phase" != "hyperparam" ] && [ "$phase" != "train" ] && [ "$phase" != "test" ];
 then
-	echo "first argument must be 'hyperparam' or 'train'"
+	echo "first argument must be 'hyperparam', 'test' or 'train'"
 	exit
 fi
 
 if [ "$task_type" == "single" ];
 then
-    data_dir="../data/single"
+    data_dir="data/single"
     echo "task_type SINGLETASK, data_dir $data_dir"
 elif [ "$task_type" == "multi" ];
 then
-    data_dir="../data/multi"
+    data_dir="data/multi"
     echo "task_type SINGLETASK, data_dir $data_dir"
 else
     echo "Must provide a task_type (single or multi)"
@@ -75,18 +75,18 @@ fi
 
 echo "language: $language\nmodel: $model"
 
-if [ "$todo" == "hyperparam" ];
+if [ "$phase" == "hyperparam" ];
 then
   echo "Hyperparameter search."
-  python3 train.py --hypsearch \
+  python3 train_single.py --hypsearch \
                                  --lang $language \
                                  --fold 1 \
                                  --data_dir $data_dir \
                                  --model $model
-elif [ "$todo" == "train" ];
+elif [ "$phase" == "train" ];
 then
   echo "Train the model."
-  python3 train.py --do_train --do_test \
+  python3 train_single.py --do_train --do_test \
                                  --lang $language \
                                  --fold 1 \
                                  --data_dir $data_dir \
@@ -95,10 +95,10 @@ then
                                  --train_epochs $train_epochs \
                                  --model $model
 
-elif [ "$todo" == "test" ];
+elif [ "$phase" == "test" ];
 then
   echo "Test the model."
-  python3 train.py --do_test \
+  python3 train_single.py --do_test \
                                  --lang $language \
                                  --fold 1 \
                                  --data_dir $data_dir \

@@ -6,7 +6,6 @@ import os
 import re
 import sys
 import time
-from datasets import Dataset
 from os import path
 from packaging.version import Version
 
@@ -15,6 +14,7 @@ import numpy as np
 import pandas as pd
 import torch
 import transformers
+from datasets import Dataset
 from torch import cuda
 from transformers import AutoTokenizer
 from transformers import DataCollatorForTokenClassification, AutoConfig
