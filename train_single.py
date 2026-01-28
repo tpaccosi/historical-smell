@@ -20,6 +20,9 @@ from transformers import AutoTokenizer
 from transformers import DataCollatorForTokenClassification, AutoConfig
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 
+from hist_smell.utils.prediction import map_predictions_to_bio_format
+from hist_smell.utils.evaluation import results_to_json
+
 
 device = 'cpu'
 if cuda.is_available():
@@ -144,6 +147,7 @@ def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True):
     tokenized_inputs = tokenizer(examples["sentence"], max_length=512, truncation=True, is_split_into_words=True)
 
     labels = []
+    words = []
     for i, label in enumerate(examples["word_labels"]):
         word_ids = tokenized_inputs.word_ids(batch_index=i)
         previous_word_idx = None
@@ -163,8 +167,10 @@ def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True):
             previous_word_idx = word_idx
 
         labels.append(label_ids)
+        words.append(word_ids)
 
     tokenized_inputs["labels"] = labels
+    tokenized_inputs["word_ids"] = words
     return tokenized_inputs
 
 
@@ -188,12 +194,14 @@ def main():
     parser.add_argument("--learning_rate", type=float, help="Learning Rate for training.", default=2e-5)
     parser.add_argument("--train_batch_size", type=int, help="Training batch size.", default=4)
     parser.add_argument("--train_epochs", type=int, help="Training epochs.", default=3)
+    parser.add_argument("--train_size", type=float, help="Fraction of the training set used.", default=1.0)
     parser.add_argument("--model", action='store', default="bert-base-multilingual-uncased",
                         help="Model Checkpoint to fine tune. If none is given, bert-base-multilingual-uncased will be used.")
 
     args = parser.parse_args()
 
     model_checkpoint = args.model
+    model_base_dir = 'models/finetuned/single'
     fold = str(args.fold)
     data_dir = args.data_dir
     if data_dir is None:
@@ -213,6 +221,8 @@ def main():
     config = AutoConfig.from_pretrained(model_checkpoint)
     labels_to_ids = config.label2id
     ids_to_labels = config.id2label
+
+    train_size = args.train_size
 
     def model_init():
         m = AutoModelForTokenClassification.from_pretrained(model_checkpoint, config=config)
@@ -234,11 +244,17 @@ def main():
         config.num_labels = len(label_list)
 
     model_name = model_checkpoint.split("/")[-1]
+    print(f"model_name: #{model_name}#")
+    model_lang_dir = f"{model_base_dir}/{language}"
+    print(f"model_lang_dir: #{model_lang_dir}#")
+    print(f"train_size: #{train_size}#")
+    model_dir = f"{model_lang_dir}/{model_name}-{language}-fold-{fold}-train_size-{train_size}"
+    print(f"model_dir: #{model_dir}#")
 
     if args.hypsearch:
         if Version(transformers.__version__) < Version("4.46"):
             tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}-hyp",
+                f"{model_dir}-hyp",
                 evaluation_strategy="epoch",
                 save_strategy="epoch",
                 per_device_eval_batch_size=8,
@@ -248,7 +264,7 @@ def main():
             )
         else:
             tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}-hyp",
+                f"{model_dir}-hyp",
                 eval_strategy="epoch",
                 save_strategy="epoch",
                 per_device_eval_batch_size=8,
@@ -259,10 +275,12 @@ def main():
     elif args.do_train:
         if Version(transformers.__version__) < Version("4.46"):
             tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}",
+                model_dir,
                 evaluation_strategy="epoch",
                 save_strategy="epoch",
-                learning_rate=args.learning_rate,
+                save_total_limit=2,
+                load_best_model_at_end=True,
+            learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.train_batch_size,
                 per_device_eval_batch_size=8,
                 num_train_epochs=args.train_epochs,
@@ -272,9 +290,11 @@ def main():
             )
         else:
             tr_args = TrainingArguments(
-                f"{model_name}-{language}-{fold}",
+                model_dir,
                 eval_strategy="epoch",
                 save_strategy="epoch",
+                save_total_limit=2,
+                load_best_model_at_end=True,
                 learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.train_batch_size,
                 per_device_eval_batch_size=8,
@@ -317,8 +337,8 @@ def main():
             train_dataset=tokenized_train,
             eval_dataset=tokenized_val,
             data_collator=data_collator,
-            tokenizer=tokenizer,
-            compute_metrics=compute_metrics
+            processing_class=tokenizer,
+            compute_metrics=compute_metrics,
         )
     elif args.do_test:
         #for testing
@@ -331,9 +351,13 @@ def main():
             label_list = list(labels_to_ids.values())
             config.num_labels = len(label_list)
 
-        m = AutoModelForTokenClassification.from_pretrained(model_checkpoint, config=config)
+        print(f"Loading model from {model_dir}")
+        config = AutoConfig.from_pretrained(model_dir)
+        labels_to_ids = config.label2id
+        ids_to_labels = config.id2label
+        m = AutoModelForTokenClassification.from_pretrained(model_dir, config=config)
         m.to(device)
-        trainer = Trainer(m, data_collator=data_collator, tokenizer=tokenizer)
+        trainer = Trainer(m, data_collator=data_collator, processing_class=tokenizer)
 
     if args.hypsearch:
         # hyperparam search with compute_metrics: default maximization is through the sum of all the metrics returned
@@ -349,6 +373,7 @@ def main():
 
     elif args.do_train:
         trainer.train()
+        trainer.save_model(f"{model_name}-{language}-{fold}")
 
     if args.do_test:
         print("TEST RESULTS")
@@ -369,9 +394,12 @@ def main():
             for prediction, label in zip(predictions, labels)
         ]
 
+        bio_annos = map_predictions_to_bio_format(predictions, tokenized_test, ids_to_labels)
+        bio_annos.to_csv(f"{model_dir}/test.tsv", sep="\t", index=False, header=False)
         results = metric.compute(predictions=true_predictions, references=true_labels)
+        json_results = results_to_json(results)
         print("\n")
-        print(results)
+        print(json.dumps(json_results, indent=4))
 
 
 if __name__ == "__main__":

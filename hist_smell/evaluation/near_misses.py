@@ -9,7 +9,7 @@ from flair.training_utils import Result
 # Evaluation code #
 ###################
 
-def read_pred_tag_file(test_tagged_file: str):
+def read_pred_tag_file(test_tagged_file: str, sep: str = '\t'):
     """Read the tag prediction file for a model, which has two columns:
 
     1. token
@@ -19,10 +19,10 @@ def read_pred_tag_file(test_tagged_file: str):
         sent_idx = 0
         token_idx = 0
         for li, line in enumerate(fh):
-            parts = line.strip().split(' ')
+            parts = line.strip().split(sep)
             if len(parts) == 2:
                 token_idx += 1
-                yield [sent_idx, token_idx] + parts
+                yield parts
             else:
                 yield None, None, parts[0], None
                 sent_idx += 1
@@ -30,21 +30,24 @@ def read_pred_tag_file(test_tagged_file: str):
     return None
 
 
-def read_test_tag_file(test_tagged_file: str):
-    """Read the tagged test file for a model, which has three columns:
+def read_test_tag_file(test_tagged_file: str, sep: str = '\t'):
+    """Read the tagged test file for a model, which has six columns:
 
-    1. token
-    2. true label
-    3. predicted label
+    1. text_id
+    2. sentence_index
+    3. token_index
+    4. token
+    5. true label
+    6. predicted label
     """
     with open(test_tagged_file, 'rt') as fh:
         sent_idx = 0
         token_idx = 0
         for li, line in enumerate(fh):
-            parts = line.strip().split(' ')
-            if len(parts) == 3:
-                token_idx += 1
-                yield [sent_idx, token_idx] + parts
+            parts = line.strip().split(sep)
+            if len(parts) == 6:
+                text_id, sent_idx, token_idx, token, true_label, pred_label = parts
+                yield text_id, int(sent_idx), int(token_idx), token, true_label, pred_label
             else:
                 yield None, None, parts[0], None, None
                 sent_idx += 1
@@ -54,7 +57,8 @@ def read_test_tag_file(test_tagged_file: str):
 
 class Token:
 
-    def __init__(self, sent_idx: int, token_idx: int, text: str, label: str):
+    def __init__(self, text_id: str, sent_idx: int, token_idx: int, text: str, label: str):
+        self.text_id = text_id
         self.sent_idx = sent_idx
         self.token_idx = token_idx
         self.text = text
@@ -63,7 +67,8 @@ class Token:
 
 class Span:
 
-    def __init__(self, sent_idx: int, start, end: int, text, label: Union[str, List[str]]):
+    def __init__(self, text_id: str, sent_idx: int, start, end: int, text, label: Union[str, List[str]]):
+        self.text_id = text_id
         self.sent_idx = sent_idx
         self.start = start
         self.end = end
@@ -71,7 +76,7 @@ class Span:
         self.label = label
 
     def __repr__(self):
-        return (f"{self.__class__.__name__}(sent_idx={self.sent_idx}, start={self.start}, "
+        return (f"{self.__class__.__name__}(text_id={self.text_id}, sent_idx={self.sent_idx}, start={self.start}, "
                 f"end={self.end}, text={self.text}, label={self.label}")
 
     def has_label(self, label: str):
@@ -109,6 +114,8 @@ def merge_spans(spans: List[Span], label: str = None):
     merge_sent = None
     if label is None:
         label = list(set([label for span in spans for label in span.get_labels()]))
+    if len(set([span.text_id for span in spans])) != 1:
+        raise ValueError(f"Not all spans have the same text_id: {spans}")
     if len(set([span.sent_idx for span in spans])) != 1:
         raise ValueError(f"Not all spans have the same sent_idx: {spans}")
     for span in spans:
@@ -276,12 +283,13 @@ def score_strict_lenient(true_spans: List[Span] = None, pred_spans: List[Span] =
 
 
 def get_span_from_tokens(tokens: List[Token]) -> Span:
+    text_id = tokens[0].text_id
     sent = tokens[0].sent_idx
     start = tokens[0].token_idx
     end = tokens[-1].token_idx + 1
     label = list(set([token.label for token in tokens]))
     text = ' '.join([token.text for token in tokens])
-    span = Span(sent, start, end, text, label)
+    span = Span(text_id, sent, start, end, text, label)
     return span
 
 
@@ -291,10 +299,10 @@ def get_spans(test_tag_file: str, label_col: str = None) -> List[Span]:
     read_func = read_test_tag_file if label_col is not None else read_pred_tag_file
     for tag_row in read_func(test_tag_file):
         if label_col is not None:
-            sent_idx, token_idx, text, true_label, pred_label = tag_row
+            text_id, sent_idx, token_idx, text, true_label, pred_label = tag_row
             label = true_label if label_col == 'true' else pred_label
         else:
-            sent_idx, token_idx, text, label = tag_row
+            text_id, sent_idx, token_idx, text, label = tag_row
         if label is None:
             tokens = []
             # print('\n', token_idx, token, label, '\n')
@@ -308,11 +316,11 @@ def get_spans(test_tag_file: str, label_col: str = None) -> List[Span]:
         if label.startswith('B') or label.startswith('I'):
             label_type = label[2:]
             if len(tokens) > 0 and tokens[-1].label != label_type:
-                span, layer = get_span_from_tokens(tokens)
+                span = get_span_from_tokens(tokens)
                 spans.append(span)
                 # print()
                 tokens = []
-            tokens.append(Token(sent_idx, token_idx, text, label_type))
+            tokens.append(Token(text_id, sent_idx, token_idx, text, label_type))
         if label != 'O':
             # print(token_idx, token, label, tokens)
             pass
