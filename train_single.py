@@ -373,7 +373,7 @@ def main():
 
     elif args.do_train:
         trainer.train()
-        trainer.save_model(f"{model_name}-{language}-{fold}")
+        trainer.save_model(model_dir)
 
     if args.do_test:
         print("TEST RESULTS")
