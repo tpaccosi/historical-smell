@@ -149,6 +149,7 @@ def main():
 
     if not os.path.exists(output_path):
         os.mkdir(output_path)
+    print(f"output path: {output_path}")
 
     text_annos = read_web_anno_files(fold_config.anno_path, tags)
     print(f"num files: {len(text_annos)}")
@@ -164,9 +165,9 @@ def main():
         test_annos, dev_annos, train_annos = assign_folds(test_idx, dev_idx, folds)
         output_file = os.path.join(output_path, f"folds_{fold_num}_test.tsv")
         write_annos(output_file, test_annos, tags_columns=tags_columns)
-        output_file = os.path.join(output_file, f"folds_{fold_num}_dev.tsv")
+        output_file = os.path.join(output_path, f"folds_{fold_num}_dev.tsv")
         write_annos(output_file, dev_annos, tags_columns=tags_columns)
-        output_file = os.path.join(output_file, f"folds_{fold_num}_train.tsv")
+        output_file = os.path.join(output_path, f"folds_{fold_num}_train.tsv")
         write_annos(output_file, train_annos, tags_columns=tags_columns)
 
 
