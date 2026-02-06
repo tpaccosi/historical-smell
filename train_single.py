@@ -208,7 +208,10 @@ def main():
         raise ValueError(f"Must give a data directory using the --data_dir argument.")
     print(f"data_dir: #{data_dir}#")
     language = str(args.lang).strip().lower()
-    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+    if language in {'french', 'italian'}:
+        tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, add_prefix_space=True)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
     assert isinstance(tokenizer, transformers.PreTrainedTokenizerFast)
 
     if language not in ['english', 'german', 'italian', 'slovene', 'dutch', 'french']:
@@ -279,8 +282,8 @@ def main():
                 evaluation_strategy="epoch",
                 save_strategy="epoch",
                 save_total_limit=2,
-                load_best_model_at_end=True,
-            learning_rate=args.learning_rate,
+                #load_best_model_at_end=True,
+                learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.train_batch_size,
                 per_device_eval_batch_size=8,
                 num_train_epochs=args.train_epochs,
@@ -294,7 +297,7 @@ def main():
                 eval_strategy="epoch",
                 save_strategy="epoch",
                 save_total_limit=2,
-                load_best_model_at_end=True,
+                # load_best_model_at_end=True,
                 learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.train_batch_size,
                 per_device_eval_batch_size=8,
