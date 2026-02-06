@@ -47,6 +47,9 @@ then
 elif [ "$language" == "french" ];
 then
   model="pjox/dalembert"
+  learning_rate=5e-05
+  train_batch_size=32
+  train_epochs=14
 
 elif [ "$language" == "german_ghisbert" ];
 then
@@ -67,6 +70,9 @@ then
 elif [ "$language" == "italian" ];
 then
   model="bertoldo-all/checkpoint"
+  learning_rate=5e-05
+  train_batch_size=8
+  train_epochs=16
 else
 	invalid=1
 fi

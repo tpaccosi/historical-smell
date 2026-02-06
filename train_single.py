@@ -208,7 +208,10 @@ def main():
         raise ValueError(f"Must give a data directory using the --data_dir argument.")
     print(f"data_dir: #{data_dir}#")
     language = str(args.lang).strip().lower()
-    tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+    if language in {'french', 'italian'}:
+        tokenizer = AutoTokenizer.from_pretrained(model_checkpoint, add_prefix_space=True)
+    else:
+        tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
     assert isinstance(tokenizer, transformers.PreTrainedTokenizerFast)
 
     if language not in ['english', 'german', 'italian', 'slovene', 'dutch', 'french']:
