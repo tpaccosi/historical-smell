@@ -75,12 +75,17 @@ def replace_punctuation(row):
     e.g., bianco-gialliccio becomes 3 separate CONLL lines: 1) bianco 2) - 3) gialliccio
     Things could have been easier and faster if we were delivering simple sentences as output instead of the exact
     CONLL file structure given as input. """
-    word = row['Word'].strip()
-    if len(word) > 1:
-        word = re.sub(r'[^a-zA-Z0-9]', '', word)
-    if word is None or word == "" or word == "nan":
-        word = " "
-    return word
+    try:
+        word = row['Word'].strip()
+        if len(word) > 1:
+            word = re.sub(r'[^a-zA-Z0-9]', '', word)
+        if word is None or word == "" or word == "nan":
+            word = " "
+        return word
+    except BaseException as err:
+        print(f"Cannot replace punctuation for word {row['Word']}. Error: {err}")
+        raise
+        return row['Word']
 
 
 """The script will extract the label list from the data itself. Please be sure your data and labels are clean.
@@ -97,9 +102,11 @@ def read_split_fold(data_dir: str, split='train', fold="0", lang="english", labe
     else:
         raise FileNotFoundError(f"no folds data found for language {lang}. Check folds have been created.")
     try:
+        print(f"Reading fold {fold_path}")
         data = pd.read_csv(fold_path, sep='\t', skip_blank_lines=True,
                            encoding='utf-8', engine='python', quoting=csv.QUOTE_NONE,
-                           names=['Document', 'Sentence-Token', 'Chars', 'Word', 'Tag'], header=None)
+                           names=['Document', 'Sentence-Token', 'Chars', 'Word', 'Tag', 'Empty'], header=None,
+                           dtype={'Document': str, 'Sentence-Token': str, 'Chars': str, 'Word': str, 'Tag': str,})
     except BaseException as err:
         print(f"Cannot read the file {fold_path} - error: {err}")
         if split == "train":
@@ -112,6 +119,7 @@ def read_split_fold(data_dir: str, split='train', fold="0", lang="english", labe
 
     # For the reusability purposes, we still extract the label ids from the training data.
     data['Tag'] = data.apply(lambda row: to_clean_label(row), axis=1)
+    data['Word'] = data.Word.apply(lambda x: '' if pd.isna(x) else x)
 
     print("Number of tags: {}".format(len(data.Tag.unique())))
     frequencies = data.Tag.value_counts()
@@ -282,8 +290,8 @@ def main():
                 evaluation_strategy="epoch",
                 save_strategy="epoch",
                 save_total_limit=2,
-                load_best_model_at_end=True,
-            learning_rate=args.learning_rate,
+                # load_best_model_at_end=True,
+                learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.train_batch_size,
                 per_device_eval_batch_size=8,
                 num_train_epochs=args.train_epochs,
@@ -297,7 +305,7 @@ def main():
                 eval_strategy="epoch",
                 save_strategy="epoch",
                 save_total_limit=2,
-                load_best_model_at_end=True,
+                # load_best_model_at_end=True,
                 learning_rate=args.learning_rate,
                 per_device_train_batch_size=args.train_batch_size,
                 per_device_eval_batch_size=8,
@@ -401,6 +409,8 @@ def main():
         bio_annos.to_csv(f"{model_dir}/test.tsv", sep="\t", index=False, header=False)
         results = metric.compute(predictions=true_predictions, references=true_labels)
         json_results = results_to_json(results)
+        with open(f"{model_dir}/results.json", "w") as f:
+            json.dump(json_results, f, indent=4)
         print("\n")
         print(json.dumps(json_results, indent=4))
 
