@@ -2,12 +2,54 @@ from typing import List, Dict, Tuple, Union, Set
 import re
 from collections import defaultdict
 import numpy as np
+import pandas as pd
 from flair.training_utils import Result
 
 
 ###################
 # Evaluation code #
 ###################
+
+
+class Token:
+
+    def __init__(self, text_id: str, sent_idx: int, token_idx: int, text: str, labels: List[str]):
+        self.text_id = text_id
+        self.sent_idx = sent_idx
+        self.token_idx = token_idx
+        self.text = text
+        self.labels = labels
+        self.col = {0: text_id, 1: sent_idx, 2: token_idx, 3: text}
+        for col_idx, label in enumerate(labels):
+            self.col[col_idx + 4] = label
+
+    def __getitem__(self, key):
+        return self.col[key]
+
+
+def read_pred_file(pred_file: str, sep: str = '\t'):
+    """Read the prediction file for a model, which has at least five columns:
+    1. text id
+    2. sentence index
+    3. token index
+    4. the text token
+    5. one or more predicted labels
+    """
+    with open(pred_file, 'rt') as fh:
+        for line in fh:
+            line = line.strip()
+            if line == '':
+                continue
+            try:
+                text_id, sent_token, char_range, token_text, *labels = line.split(sep)
+            except BaseException:
+                print(f"line: #{line}#")
+                raise
+            sent_idx, token_idx = [int(x) for x in sent_token.split('-')]
+            # text_id, sent_idx, token_idx, token_text, *labels = line.strip('\n').split(sep)
+            yield Token(text_id, sent_idx, token_idx, token_text, labels)
+
+
 
 def read_pred_tag_file(test_tagged_file: str, sep: str = '\t'):
     """Read the tag prediction file for a model, which has two columns:
@@ -55,16 +97,6 @@ def read_test_tag_file(test_tagged_file: str, sep: str = '\t'):
     return None
 
 
-class Token:
-
-    def __init__(self, text_id: str, sent_idx: int, token_idx: int, text: str, label: str):
-        self.text_id = text_id
-        self.sent_idx = sent_idx
-        self.token_idx = token_idx
-        self.text = text
-        self.label = label
-
-
 class Span:
 
     def __init__(self, text_id: str, sent_idx: int, start, end: int, text, label: Union[str, List[str]]):
@@ -90,19 +122,19 @@ class Span:
 
     @property
     def string(self):
-        return f'{self.sent_idx}: Span[{self.start}:{self.end}]: "{self.text}"'
+        return f'{self.text_id} {self.sent_idx}: Span[{self.start}:{self.end}]: "{self.text}"'
 
 
 def parse_span(span: str, label: str):
-    m = re.match(r"(\d+): Span\[(\d+):(\d+)]: \"(.*?)\"", span)
+    m = re.match(r"(\S+) (\d+): Span\[(\d+):(\d+)]: \"(.*?)\"", span)
     if m is None:
         raise ValueError(f"invalid span format: {span}")
-    sent_idx, start, end, text = m.groups()
-    return Span(int(sent_idx), int(start), int(end), text, label)
+    text_id, sent_idx, start, end, text = m.groups()
+    return Span(text_id, int(sent_idx), int(start), int(end), text, label)
 
 
-def make_span(sent_idx, start, end, text):
-    return f'{sent_idx}: Span[{start}:{end}]: "{text}"'
+def make_span(text_id, sent_idx, start, end, text):
+    return f'{text_id} {sent_idx}: Span[{start}:{end}]: "{text}"'
 
 
 def merge_spans(spans: List[Span], label: str = None):
@@ -112,6 +144,7 @@ def merge_spans(spans: List[Span], label: str = None):
     merge_start = None
     merge_end = None
     merge_sent = None
+    merge_text_id = None
     if label is None:
         label = list(set([label for span in spans for label in span.get_labels()]))
     if len(set([span.text_id for span in spans])) != 1:
@@ -119,13 +152,109 @@ def merge_spans(spans: List[Span], label: str = None):
     if len(set([span.sent_idx for span in spans])) != 1:
         raise ValueError(f"Not all spans have the same sent_idx: {spans}")
     for span in spans:
+        merge_text_id = span.text_id
         merge_sent = span.sent_idx
         if merge_start is None:
             merge_start = span.start
         merge_end = span.end
         merge_texts.append(span.text)
     # '57: Span[114:121]: "haer Hoogh Mog . Resolutie en bygevoeghde"'
-    return Span(merge_sent, merge_start, merge_end, ' '.join(merge_texts), label)
+    return Span(merge_text_id, merge_sent, merge_start, merge_end, ' '.join(merge_texts), label)
+
+
+def find_overlapping_spans(test_spans: List[Span], pred_spans: List[Span]) -> List[Tuple[Span, Span]]:
+    """Find overlapping spans between two lists of spans. Returns a list of tuples of overlapping spans."""
+    overlapping_spans = []
+    sent_test_spans = defaultdict(list)
+    sents = set([(span.text_id, span.sent_idx) for span in test_spans])
+    sents.update([(span.text_id, span.sent_idx) for span in pred_spans])
+    sents = sorted(sents)
+    for span in test_spans:
+        sent_test_spans[(span.text_id, span.sent_idx)].append(span)
+    sent_pred_spans = defaultdict(list)
+    for span in pred_spans:
+        sent_pred_spans[(span.text_id, span.sent_idx)].append(span)
+    for sent in sents:
+        matched = set()
+        for test_span in sent_test_spans[sent]:
+            for pred_span in sent_pred_spans[sent]:
+                if test_span.text_id != pred_span.text_id:
+                    continue
+                if test_span.sent_idx != pred_span.sent_idx:
+                    continue
+                if test_span.label != pred_span.label:
+                    continue
+                if spans_match(test_span, pred_span):
+                    overlapping_spans.append((test_span, pred_span))
+                    matched.update([test_span, pred_span])
+                elif max(test_span.start, pred_span.start) <= min(test_span.end, pred_span.end):
+                    overlapping_spans.append((test_span, pred_span))
+                    matched.update([test_span, pred_span])
+            if test_span not in matched:
+                overlapping_spans.append((test_span, None))
+        for pred_span in sent_pred_spans[sent]:
+            if pred_span not in matched:
+                overlapping_spans.append((None, pred_span))
+    return overlapping_spans
+
+
+def classify_start_overlap(row):
+    if row['match_type'].startswith('miss_pred'):
+        return 'missed'
+    if row['match_type'].startswith('miss_test'):
+        return 'wrong'
+    if row['test_start'] == row['pred_start']:
+        return 'exact'
+    if row['test_start'] < row['pred_start']:
+        return 'late'
+    else:
+        return 'early'
+
+
+def classify_end_overlap(row):
+    if row['match_type'].startswith('miss_pred'):
+        return 'missed'
+    if row['match_type'].startswith('miss_test'):
+        return 'wrong'
+    if row['test_end'] == row['pred_end']:
+        return 'exact'
+    if row['test_end'] < row['pred_end']:
+        return 'late'
+    else:
+        return 'early'
+
+
+def make_overlapping_spans_dataframe(overlapping_spans: List[Tuple[Span, Span]]):
+    """Convert a list of overlapping spans into a pandas DataFrame."""
+    rows = []
+    for test_span, pred_span in overlapping_spans:
+        if pred_span is None:
+            match_type = 'miss_pred'
+        elif test_span is None:
+            match_type = 'miss_test'
+        elif spans_match(test_span, pred_span):
+            match_type = 'exact'
+        else:
+            match_type = 'partial'
+        row = {
+            'test_text_id': test_span.text_id if test_span is not None else None,
+            'test_sent_idx': test_span.sent_idx if test_span is not None else None,
+            'test_start': test_span.start if test_span is not None else None,
+            'test_end': test_span.end if test_span is not None else None,
+            'test_text': test_span.text if test_span is not None else None,
+            'test_label': test_span.label if test_span is not None else None,
+            'pred_text_id': pred_span.text_id if pred_span is not None else None,
+            'pred_sent_idx': pred_span.sent_idx if pred_span is not None else None,
+            'pred_start': pred_span.start if pred_span is not None else None,
+            'pred_end': pred_span.end if pred_span is not None else None,
+            'pred_text': pred_span.text if pred_span is not None else None,
+            'pred_label': pred_span.label if pred_span is not None else None,
+            'match_type': match_type
+        }
+        row['overlap_start'] = classify_start_overlap(row)
+        row['overlap_end'] = classify_end_overlap(row)
+        rows.append(row)
+    return pd.DataFrame(rows)
 
 
 def get_extended_res_spans(pred_spans: List[Span]) -> List[Span]:
@@ -215,7 +344,55 @@ def spans_match(span1: Span, span2: Span) -> bool:
     return labels1 == labels2
 
 
-def score_strict_lenient(true_spans: List[Span] = None, pred_spans: List[Span] = None,
+def compute_f_score(row, eval_type, f: float = 1.0):
+    prec_col = f"{eval_type}_prec"
+    rec_col = f"{eval_type}_rec"
+    if row[prec_col] + row[rec_col] == 0.0:
+        return 0.0
+    else:
+        return 2 * row[prec_col] * row[rec_col] / (row[prec_col] + row[rec_col])
+
+
+def make_match_frame(overlap_df, test_freq, pred_freq):
+    exact_label_freq = overlap_df[overlap_df.match_type == 'exact'].test_label.value_counts().rename('exact_freq')
+
+    partial_label_freq = overlap_df[overlap_df.match_type == 'partial'].test_label.value_counts().rename('partial_freq')
+
+    match_df = pd.concat([test_freq, pred_freq, exact_label_freq, partial_label_freq], axis=1).fillna(0.0)
+    match_df['missing'] = match_df.apply(lambda row: row['test_freq'] - row['exact_freq'] - row['partial_freq'], axis=1)
+    match_df['lenient_freq'] = match_df.exact_freq + match_df.partial_freq
+    match_df['exact_prop'] = match_df.exact_freq / match_df.exact_freq.sum()
+    match_df['partial_prop'] = match_df.partial_freq / match_df.partial_freq.sum()
+    match_df['lenient_prop'] = match_df.lenient_freq / match_df.lenient_freq.sum()
+
+    match_df.loc['Overall'] = match_df.sum()
+    match_df['exact_frac'] = match_df.exact_freq / match_df.test_freq
+    match_df['partial_frac'] = match_df.partial_freq / match_df.test_freq
+    match_df['exact_prec'] = match_df.exact_freq / match_df.pred_freq
+    match_df['exact_rec'] = match_df.exact_freq / match_df.test_freq
+    match_df['exact_f1'] = match_df.apply(lambda row: compute_f_score(row, 'exact', f=1.0), axis=1)
+    match_df['lenient_prec'] = match_df.lenient_freq / match_df.pred_freq
+    match_df['lenient_rec'] = match_df.lenient_freq / match_df.test_freq
+    match_df['lenient_f1'] = match_df.apply(lambda row: compute_f_score(row, 'lenient', f=1.0), axis=1)
+    return match_df
+
+
+def score_strict_lenient(overlap_df, test_freq, pred_freq):
+    match_df = make_match_frame(overlap_df, test_freq, pred_freq)
+    weighted_avg_exact = (match_df[['exact_prec', 'exact_rec', 'exact_f1']].T.drop('Overall', axis=1) * match_df.drop(
+        'Overall').exact_prop).T.sum()
+    weighted_avg_lenient = (
+                match_df[['lenient_prec', 'lenient_rec', 'lenient_f1']].T.drop('Overall', axis=1) * match_df.drop(
+            'Overall').lenient_prop).T.sum()
+    weighted_avg = pd.concat([weighted_avg_exact, weighted_avg_lenient]).rename('weight_avg')
+    eval_cols = ['exact_prec', 'exact_rec', 'exact_f1', 'lenient_prec', 'lenient_rec', 'lenient_f1']
+    macro_avg = match_df.drop('Overall')[eval_cols].mean().rename('macro_avg')
+    eval_avg = pd.concat([macro_avg, weighted_avg], axis=1).T
+    score_df = pd.concat([match_df[eval_cols], eval_avg])
+    return score_df
+
+
+def score_strict_lenient_old(true_spans: List[Span] = None, pred_spans: List[Span] = None,
                          result: Result = None, label: str = None) -> Dict[str, any]:
     if result is not None:
         true_spans, pred_spans = get_true_pred_spans_from_results(result, label)
@@ -282,15 +459,59 @@ def score_strict_lenient(true_spans: List[Span] = None, pred_spans: List[Span] =
     return scores
 
 
-def get_span_from_tokens(tokens: List[Token]) -> Span:
+def get_span_from_tokens(tokens: List[Token], label_col: int) -> Span:
     text_id = tokens[0].text_id
     sent = tokens[0].sent_idx
     start = tokens[0].token_idx
     end = tokens[-1].token_idx + 1
-    label = list(set([token.label for token in tokens]))
+    label = tokens[0][label_col][2:]
     text = ' '.join([token.text for token in tokens])
     span = Span(text_id, sent, start, end, text, label)
     return span
+
+
+def tokens_to_spans(doc_tokens: List[Token]) -> List[Span]:
+    spans = []
+    tokens = []
+    if len(doc_tokens) == 0:
+        return spans
+    for label_col in range(5, len(doc_tokens[0].col)):
+        prev_text_id = None
+        prev_sent_idx = None
+        for token in doc_tokens:
+            label = token[label_col]
+            # print(f'{token.token_idx:>4d} {token.text:<10s} {label:<10s}')
+            if label is None or prev_text_id != token.text_id or prev_sent_idx != token.sent_idx:
+                tokens = []
+                prev_text_id, prev_sent_idx = None, None
+                # print(f'\nsent boundary\n')
+                if label is None:
+                    continue
+            if label == 'O' or label.startswith('B'):
+                # print(f'\nspan boundary\n')
+                if len(tokens) > 0:
+                    span = get_span_from_tokens(tokens, label_col=label_col)
+                    spans.append(span)
+                    # print()
+                tokens = []
+            if label.startswith('B') or label.startswith('I'):
+                label_type = label[2:]
+                if len(tokens) > 0 and tokens[-1][label_col][2:] != label_type:
+                    span = get_span_from_tokens(tokens, label_col=label_col)
+                    spans.append(span)
+                    # print()
+                    tokens = []
+                tokens.append(token)
+            if label != 'O':
+                # print(token_idx, token, label, tokens)
+                pass
+            prev_text_id, prev_sent_idx = token.text_id, token.sent_idx
+            # print(f"number of spans: {len(spans)}\tnumber of tokens: {len(tokens)}")
+        if len(tokens) > 0:
+            span = get_span_from_tokens(tokens, label_col=label_col)
+            spans.append(span)
+            # print()
+    return spans
 
 
 def get_spans(test_tag_file: str, label_col: str = None) -> List[Span]:
@@ -303,29 +524,4 @@ def get_spans(test_tag_file: str, label_col: str = None) -> List[Span]:
             label = true_label if label_col == 'true' else pred_label
         else:
             text_id, sent_idx, token_idx, text, label = tag_row
-        if label is None:
-            tokens = []
-            # print('\n', token_idx, token, label, '\n')
-            continue
-        if label == 'O' or label.startswith('B'):
-            if len(tokens) > 0:
-                span = get_span_from_tokens(tokens)
-                spans.append(span)
-                # print()
-            tokens = []
-        if label.startswith('B') or label.startswith('I'):
-            label_type = label[2:]
-            if len(tokens) > 0 and tokens[-1].label != label_type:
-                span = get_span_from_tokens(tokens)
-                spans.append(span)
-                # print()
-                tokens = []
-            tokens.append(Token(text_id, sent_idx, token_idx, text, label_type))
-        if label != 'O':
-            # print(token_idx, token, label, tokens)
-            pass
-    if len(tokens) > 0:
-        span = get_span_from_tokens(tokens)
-        spans.append(span)
-        # print()
     return spans
