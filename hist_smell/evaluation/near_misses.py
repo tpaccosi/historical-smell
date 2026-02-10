@@ -50,6 +50,13 @@ def read_pred_file(pred_file: str, sep: str = '\t'):
             yield Token(text_id, sent_idx, token_idx, token_text, labels)
 
 
+def write_pred_file(pred_file: str, tokens: List[Token], sep: str = '\t'):
+    with open(pred_file, 'wt') as fh:
+        for token in tokens:
+            label_string = sep.join(token.labels)
+            fh.write(f"{token.text_id}{sep}{token.sent_idx}-{token.token_idx}{sep}{token.text}{sep}{label_string}\n")
+
+
 
 def read_pred_tag_file(test_tagged_file: str, sep: str = '\t'):
     """Read the tag prediction file for a model, which has two columns:
