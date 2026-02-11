@@ -3,6 +3,6 @@ optuna>=4.0
 pandas>=2.0
 torch>=2.0
 #torch==1.13.1
-transformers>=4.46
+transformers==4.44.2
 #transformers==4.25.1
 seqeval==1.2.2
