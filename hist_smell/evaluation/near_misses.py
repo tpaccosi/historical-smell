@@ -13,12 +13,14 @@ from flair.training_utils import Result
 
 class Token:
 
-    def __init__(self, text_id: str, sent_idx: int, token_idx: int, text: str, labels: List[str]):
+    def __init__(self, text_id: str, sent_idx: int, token_idx: int, text: str,
+                 labels: List[str], orig_string: str = None):
         self.text_id = text_id
         self.sent_idx = sent_idx
         self.token_idx = token_idx
         self.text = text
         self.labels = labels
+        self.orig_string = orig_string
         self.col = {0: text_id, 1: sent_idx, 2: token_idx, 3: text}
         for col_idx, label in enumerate(labels):
             self.col[col_idx + 4] = label
@@ -47,14 +49,25 @@ def read_pred_file(pred_file: str, sep: str = '\t'):
                 raise
             sent_idx, token_idx = [int(x) for x in sent_token.split('-')]
             # text_id, sent_idx, token_idx, token_text, *labels = line.strip('\n').split(sep)
-            yield Token(text_id, sent_idx, token_idx, token_text, labels)
+            yield Token(text_id, sent_idx, token_idx, token_text, labels, orig_string=line)
 
 
 def write_pred_file(pred_file: str, tokens: List[Token], sep: str = '\t'):
     with open(pred_file, 'wt') as fh:
+        prev_text_id, prev_sent_idx = None, None
         for token in tokens:
-            label_string = sep.join(token.labels)
-            fh.write(f"{token.text_id}{sep}{token.sent_idx}-{token.token_idx}{sep}{token.text}{sep}{label_string}\n")
+            if prev_text_id != token.text_id or prev_sent_idx != token.sent_idx:
+                if prev_text_id is not None:
+                    fh.write('\n')
+            if token.orig_string is not None:
+                line = f"{token.orig_string}"
+                if token.orig_string[-1] != '\n':
+                    line += '\n'
+            else:
+                label_string = sep.join(token.labels)
+                line = f"{token.text_id}{sep}{token.sent_idx}-{token.token_idx}{sep}{token.text}{sep}{label_string}\n"
+            fh.write(line)
+            prev_text_id, prev_sent_idx = token.text_id, token.sent_idx
 
 
 
@@ -482,7 +495,7 @@ def tokens_to_spans(doc_tokens: List[Token]) -> List[Span]:
     tokens = []
     if len(doc_tokens) == 0:
         return spans
-    for label_col in range(5, len(doc_tokens[0].col)):
+    for label_col in range(4, len(doc_tokens[0].col)):
         prev_text_id = None
         prev_sent_idx = None
         for token in doc_tokens:
