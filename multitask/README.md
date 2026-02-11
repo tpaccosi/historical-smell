@@ -1,0 +1,47 @@
+# mt info
+
+## Installation
+
+Install all required dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Training and Prediction
+
+To train the model and run predictions, use:
+
+```bash
+bash run_all_select_lan.sh <lang>
+```
+
+Example (English):
+
+```bash
+bash run_all_select_lan.sh en
+```
+
+Supported languages:
+
+- `en` (English)
+- `de` (German)
+- `fr` (French)
+- `nl` (Dutch)
+- `it` (Italian)
+
+---
+
+## Important Notes
+
+- **Check the training data path** inside the shell script.  
+  It can point either to:
+  - the full training set, or  
+  - a selected fraction of the training data.
+
+- **Create the predictions folder before running the script.**  
+  Then update the `PREDICTIONS_PATH` variable in the shell file to match your desired output directory.
+
+- Make sure all required dataset files (train/dev/test splits) are correctly placed in the expected data folder structure.

@@ -1,0 +1,119 @@
+{
+    "smell-it": {
+        "train_data_path": "out-fold-smell-it/folds_4_train.tsv",
+        "validation_data_path": "out-fold-smell-it/folds_4_dev.tsv",
+        "word_idx": 3,
+        "tasks": {
+            "Smell_Word": {
+                "task_type": "seq_bio",
+                "column_idx": 4,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Smell_Source": {
+                "task_type": "seq_bio",
+                "column_idx": 5,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Quality": {
+                "task_type": "seq_bio",
+                "column_idx": 6,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Evoked_Odorant": {
+                "task_type": "seq_bio",
+                "column_idx": 10,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Location": {
+                "task_type": "seq_bio",
+                "column_idx": 12,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Perceiver": {
+                "task_type": "seq_bio",
+                "column_idx": 8,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Circumstances": {
+                "task_type": "seq_bio",
+                "column_idx": 7,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Odour_Carrier": {
+                "task_type": "seq_bio",
+                "column_idx": 11,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Effect": {
+                "task_type": "seq_bio",
+                "column_idx": 9,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            },
+            "Time": {
+                "task_type": "seq_bio",
+                "column_idx": 13,
+                "metric": "span_f1",
+                "additional_metrics": [
+                    "f1_micro",
+                    "f1_macro",
+                    "accuracy"
+                ],
+                "loss_weight": 1.0
+            }
+        }
+    }
+}

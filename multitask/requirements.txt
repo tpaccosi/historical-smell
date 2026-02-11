@@ -1,0 +1,10 @@
+torch==2.2.2
+torchvision
+torchaudio
+transformers==4.21.3
+sentencepiece
+jsonnet
+tqdm
+uniplot
+networkx==2.5
+numpy==1.26.4
