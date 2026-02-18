@@ -1,0 +1,253 @@
+{
+    "Circumstances": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.982635342185904,
+            "recall_micro": 0.982635342185904,
+            "f1_micro": 0.982635342185904
+        },
+        "f1_macro": {
+            "precision_O": 0.9828863346104726,
+            "recall_O": 0.9997401922577293,
+            "f1_O": 0.9912416280267904,
+            "precision_B-Circumstances": 0.0,
+            "recall_B-Circumstances": 0.0,
+            "f1_B-Circumstances": 0.0,
+            "precision_macro": 0.4914431673052363,
+            "recall_macro": 0.4998700961288646,
+            "f1_macro": 0.4956208140133952
+        }
+    },
+    "Effect": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9952757916241062,
+            "recall_micro": 0.9952757916241062,
+            "f1_micro": 0.9952757916241062
+        },
+        "f1_macro": {
+            "precision_O": 0.9952757916241062,
+            "recall_O": 1.0,
+            "f1_O": 0.9976323030652077,
+            "precision_B-Effect": 0.0,
+            "recall_B-Effect": 0.0,
+            "f1_B-Effect": 0.0,
+            "precision_macro": 0.4976378958120531,
+            "recall_macro": 0.5,
+            "f1_macro": 0.49881615153260384
+        }
+    },
+    "Evoked_Odorant": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9975740551583249,
+            "recall_micro": 0.9975740551583249,
+            "f1_micro": 0.9975740551583249
+        },
+        "f1_macro": {
+            "precision_O": 0.9975740551583249,
+            "recall_O": 1.0,
+            "f1_O": 0.9987855544902525,
+            "precision_B-Evoked_Odorant": 0.0,
+            "recall_B-Evoked_Odorant": 0.0,
+            "f1_B-Evoked_Odorant": 0.0,
+            "precision_macro": 0.49878702757916243,
+            "recall_macro": 0.5,
+            "f1_macro": 0.49939277724512626
+        }
+    },
+    "Location": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9969356486210419,
+            "recall_micro": 0.9969356486210419,
+            "f1_micro": 0.9969356486210419
+        },
+        "f1_macro": {
+            "precision_O": 0.9973176650913271,
+            "recall_O": 0.9996159262578415,
+            "f1_O": 0.99846547314578,
+            "precision_B-Location": 0.0,
+            "recall_B-Location": 0.0,
+            "f1_B-Location": 0.0,
+            "precision_macro": 0.49865883254566357,
+            "recall_macro": 0.49980796312892073,
+            "f1_macro": 0.49923273657289
+        }
+    },
+    "Odour_Carrier": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9980847803881512,
+            "recall_micro": 0.9980847803881512,
+            "f1_micro": 0.9980847803881512
+        },
+        "f1_macro": {
+            "precision_O": 0.9980847803881512,
+            "recall_O": 1.0,
+            "f1_O": 0.9990414722985494,
+            "precision_B-Odour_Carrier": 0.0,
+            "recall_B-Odour_Carrier": 0.0,
+            "f1_B-Odour_Carrier": 0.0,
+            "precision_macro": 0.4990423901940756,
+            "recall_macro": 0.5,
+            "f1_macro": 0.4995207361492747
+        }
+    },
+    "Perceiver": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9961695607763024,
+            "recall_micro": 0.9961695607763024,
+            "f1_micro": 0.9961695607763024
+        },
+        "f1_macro": {
+            "precision_O": 0.9961695607763024,
+            "recall_O": 1.0,
+            "f1_O": 0.9980811052833568,
+            "precision_B-Perceiver": 0.0,
+            "recall_B-Perceiver": 0.0,
+            "f1_B-Perceiver": 0.0,
+            "precision_macro": 0.4980847803881512,
+            "recall_macro": 0.5,
+            "f1_macro": 0.4990405526416784
+        }
+    },
+    "Quality": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9828907048008172,
+            "recall_micro": 0.9828907048008172,
+            "f1_micro": 0.9828907048008172
+        },
+        "f1_macro": {
+            "precision_O": 0.9831417624521073,
+            "recall_O": 0.9997402597402597,
+            "f1_O": 0.9913715389568576,
+            "precision_B-Quality": 0.0,
+            "recall_B-Quality": 0.0,
+            "f1_B-Quality": 0.0,
+            "precision_macro": 0.49157088122605364,
+            "recall_macro": 0.49987012987012985,
+            "f1_macro": 0.4956857694784288
+        }
+    },
+    "Smell_Source": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.2786885245901639,
+            "recall": 0.1349206349206349,
+            "span_f1": 0.18181818181818182,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9703779366700716,
+            "recall_micro": 0.9703779366700716,
+            "f1_micro": 0.9703779366700716
+        },
+        "f1_macro": {
+            "precision_O": 0.9741346030111955,
+            "recall_O": 0.9959215892645704,
+            "f1_O": 0.9849076242518865,
+            "precision_B-Smell_Source": 0.4918032786885246,
+            "recall_B-Smell_Source": 0.12987012987012986,
+            "f1_B-Smell_Source": 0.20547945205479454,
+            "precision_macro": 0.7329689408498601,
+            "recall_macro": 0.5628958595673501,
+            "f1_macro": 0.5951935381533405
+        }
+    },
+    "Smell_Word": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.2,
+            "recall": 0.007633587786259542,
+            "span_f1": 0.014705882352941175,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9828907048008172,
+            "recall_micro": 0.9828907048008172,
+            "f1_micro": 0.9828907048008172
+        },
+        "f1_macro": {
+            "precision_O": 0.9833908266257826,
+            "recall_O": 0.9994805869367615,
+            "f1_O": 0.9913704276146317,
+            "precision_B-Smell_Word": 0.2,
+            "recall_B-Smell_Word": 0.007633587786259542,
+            "f1_B-Smell_Word": 0.014705882352941175,
+            "precision_macro": 0.5916954133128913,
+            "recall_macro": 0.5035570873615105,
+            "f1_macro": 0.5030381549837865
+        }
+    },
+    "Time": {
+        "optimization_metrics": "span_f1",
+        "span_f1": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "span_f1": 0.0,
+            "sum": "span_f1"
+        },
+        "f1_micro": {
+            "precision_micro": 0.9969356486210419,
+            "recall_micro": 0.9969356486210419,
+            "f1_micro": 0.9969356486210419
+        },
+        "f1_macro": {
+            "precision_O": 0.9969356486210419,
+            "recall_O": 1.0,
+            "f1_O": 0.99846547314578,
+            "precision_B-Time": 0.0,
+            "recall_B-Time": 0.0,
+            "f1_B-Time": 0.0,
+            "precision_macro": 0.49846782431052095,
+            "recall_macro": 0.5,
+            "f1_macro": 0.49923273657289
+        }
+    },
+    "sum": 0.196524064171123
+}
