@@ -29,7 +29,7 @@ class Token:
         return self.col[key]
 
 
-def read_pred_file(pred_file: str, sep: str = '\t'):
+def read_pred_file(pred_file: str, sep: str = '\t', use_sent_token: bool = True):
     """Read the prediction file for a model, which has at least five columns:
     1. text id
     2. sentence index
@@ -43,11 +43,15 @@ def read_pred_file(pred_file: str, sep: str = '\t'):
             if line == '':
                 continue
             try:
-                text_id, sent_token, char_range, token_text, *labels = line.split(sep)
+                if use_sent_token:
+                    text_id, sent_token, char_range, token_text, *labels = line.split(sep)
+                    sent_idx, token_idx = [int(x) for x in sent_token.split('-')]
+                else:
+                    text_id, sent_idx, token_idx, token_text, *labels = line.split(sep)
+                    sent_idx, token_idx = [int(x) for x in [sent_idx, token_idx]]
             except BaseException:
                 print(f"line: #{line}#")
                 raise
-            sent_idx, token_idx = [int(x) for x in sent_token.split('-')]
             # text_id, sent_idx, token_idx, token_text, *labels = line.strip('\n').split(sep)
             yield Token(text_id, sent_idx, token_idx, token_text, labels, orig_string=line)
 
