@@ -1,7 +1,25 @@
 # historical-smell
 
-## Single Task 
+## Repository Overview
 
-``create_folds.py`` -- click BERT for the single task format of data. The input data are the annotated datasets in Odeuropa/benchmarks_and_corpora/webanno.zip 
+This repository presents the results of our experiments on **olfactory frame extraction**, comparing **contemporary** and **historical** language models. The goal of these experiments is to analyze how temporal changes in language affect frame extraction performance and to provide tools for reproducible evaluation.  
 
-``train.sh`` -- todo="hyperparam" to run the hyperparameter search, todo="train" to train the folds. Each fold needs to be inserted manually in this script. 
+### What’s in this repository
+
+- **Model Training and Prediction**  
+  Scripts for training and running predictions in a **multitask setting** using the **MAChamp** toolkit.  
+
+- **Evaluation**  
+  Scripts to compute **precision, recall, and F1 scores**, supporting both **strict** and **lenient** evaluation modes, along with tools for more detailed **span-level analysis**.  
+
+- **Subword Analysis**  
+  Scripts to calculate **subword fertility rates** for each model and language, helping to understand how tokenization affects model performance.  
+
+- **Data Splits and Experiments**  
+  Scripts to create **train/dev/test folds** and to generate **subsets of the training data** for experiments studying the **impact of training size**.  
+
+### Model Availability
+
+The trained models will be released on **Hugging Face**. For **anonymity reasons during the peer-review period**, links to the models will only be provided after the anonymization period ends.  
+
+This repository is designed to be a **comprehensive resource** for reproducing experiments, analyzing results, and exploring the effects of historical language variation on olfactory frame extraction.
