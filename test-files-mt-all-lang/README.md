@@ -1,6 +1,6 @@
 ## Output Folders
 
-The `outfold-{lang}` directories contain the prediction files organized by language.  
+The `out-fold-smell-{lang}` directories contain the prediction files organized by language.  
 Inside each folder, you will find files corresponding to:
 
 - `train` — the training set  
