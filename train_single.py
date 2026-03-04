@@ -45,6 +45,28 @@ model_checkpoint = "EMBEDDIA/sloberta-> slovene
 """
 
 
+def sentence_num_multi(sent_token):
+    sentenceNum = sent_token.split("-")[0]
+    return sentenceNum
+
+
+def to_label_id_multi(tag, tag_num):
+    return 
+    label = tag
+    if label not in id_dict:
+        label = 'O'
+
+    labelId = id_dict[label]
+    return labelId
+
+
+def to_clean_label_multi(tag):
+    clean_tag = tag.replace("\\", "").replace("\_","_")
+    clean_tag = clean_tag.split('|')[0]
+    clean_tag = clean_tag.replace("B-I-", "B-")
+    return clean_tag
+
+
 def sentence_num(row):
     sentenceNum = row['Sentence-Token'].split("-")[0]
     return sentenceNum
@@ -93,14 +115,15 @@ def replace_punctuation(row):
   7 Labels: ['Smell_Word', 'Smell_Source', 'Quality', 'Location', 'Odour_Carrier', 'Evoked_Odorant', 'Time']"""
 
 
-def read_split_fold(data_dir: str, split='train', fold="0", lang="english", label_dict=None):
+def read_split_fold(data_dir: str, split='train', fold="0", lang="english", fold_path: str = None, label_dict=None):
     # change the path template as needed.
-    if os.path.exists(f'{data_dir}/data_{lang}'):
-        fold_path = f'{data_dir}/data_{lang}/folds_{fold}_{split}.tsv'
-    elif os.path.exists(f"data_{lang}"):
-        fold_path = f'data_{lang}/folds_{fold}_{split}.tsv'
-    else:
-        raise FileNotFoundError(f"no folds data found for language {lang}. Check folds have been created.")
+    if fold_path is None:
+        if os.path.exists(f'{data_dir}/data_{lang}'):
+            fold_path = f'{data_dir}/data_{lang}/folds_{fold}_{split}.tsv'
+        elif os.path.exists(f"data_{lang}"):
+            fold_path = f'data_{lang}/folds_{fold}_{split}.tsv'
+        else:
+            raise FileNotFoundError(f"no folds data found for language {lang}. Check folds have been created.")
     try:
         print(f"Reading fold {fold_path}")
         data = pd.read_csv(fold_path, sep='\t', skip_blank_lines=True,
@@ -151,13 +174,116 @@ def read_split_fold(data_dir: str, split='train', fold="0", lang="english", labe
     return mergeddf, labels_to_ids, ids_to_labels
 
 
-def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True):
-    tokenized_inputs = tokenizer(examples["sentence"], max_length=512, truncation=True, is_split_into_words=True)
+def read_split_fold_multi(data_dir: str, split='train', fold="0", lang="english", fold_path: str = None, label_dict=None):
+    # change the path template as needed.
+    if fold_path is None:
+        if os.path.exists(f'{data_dir}/data_{lang}'):
+            fold_path = f'{data_dir}/data_{lang}/folds_{fold}_{split}.tsv'
+        elif os.path.exists(f"data_{lang}"):
+            fold_path = f'data_{lang}/folds_{fold}_{split}.tsv'
+        else:
+            raise FileNotFoundError(f"no folds data found for language {lang}. Check folds have been created.")
+    try:
+        print(f"Reading fold {fold_path}")
+        data = pd.read_csv(fold_path, sep='\t', skip_blank_lines=True,
+                           encoding='utf-8', engine='python', quoting=csv.QUOTE_NONE,
+                           names=['Document', 'Sentence-Token', 'Word', 'Tag1', 'Tag2', 'Tag3', 'Tag4', 'Tag5', 'Tag6', 'Tag7', 'Tag8', 'Tag9', 'Tag10', 'Empty'], header=None,
+                           dtype={'Document': str, 'Sentence-Token': str, 'Word': str, 'Tag1': str,})
+    except BaseException as err:
+        print(f"Cannot read the file {fold_path} - error: {err}")
+        if split == "train":
+            sys.exit()
+        return None, None
+
+    # time.sleep(5)
+    if 'Empty' in data.columns:
+        data.drop('Empty', inplace=True, axis=1)
+
+    # For the reusability purposes, we still extract the label ids from the training data.
+    for i in range(1, 11):
+        tag = f'Tag{i}'
+        data[tag] = data[tag].apply(lambda tag: to_clean_label_multi(tag), axis=1)
+    data['Word'] = data.Word.apply(lambda x: '' if pd.isna(x) else x)
+
+    # print("Number of tags: {}".format(len(data.Tag.unique())))
+    # frequencies = data.Tag.value_counts()
+    # print(frequencies)
+
+    if not label_dict:
+        labels_to_ids = {k: v for v, k in enumerate(data.Tag.unique())}
+    else:
+        labels_to_ids = label_dict
+
+    ids_to_labels = {v: k for v, k in enumerate(data.Tag.unique())}
+
+    data = data.astype({"Word": str})
+
+    data['Word'] = data.apply(lambda row: replace_punctuation(row), axis=1)
+
+    for tag_num in range(1, 11):
+        tag = f'Tag{tag_num}'
+        data[tag] = data[tag].apply(lambda tag: to_label_id_multi(tag, tag_num), axis=1)
+    data['Num'] = data['Sentence-Token'].apply(lambda num: sentence_num_multi(num), axis=1)
+
+    # Important point is that we need unique document+Sentence-Token
+    data = data.astype({"Num": int})
+    data.set_index(['Document', 'Num'])
+    df = data.groupby(['Document', 'Num'])['Word'].apply(list)
+    df2 = data.groupby(['Document', 'Num'])['Tag'].apply(list)
+    mergeddf = pd.merge(df, df2, on=['Document', 'Num'])
+    mergeddf.rename(columns={'Word': 'sentence', 'Tag': 'word_labels'}, inplace=True)
+
+    print("Number of unique sentences: {}".format(len(mergeddf)))
+
+    return mergeddf, labels_to_ids, ids_to_labels
+
+
+def unfast_tokenize(examples, tokenizer):
+    sent_tokens = examples['sentence']
+    word_labels = examples['word_labels']
+    sent_text = ' '.join(sent_tokens)
+    tokenised_sent = tokenizer.tokenize(sent_text)
+
+    sub_ends = True
+    tokens = []
+    word_ids = []
+    for st in tokenised_sent:
+        print(st)
+        word_id = len(tokens)
+        if st.startswith('<'):
+            tokens.append(st)
+            # word_ids.append(None)
+        elif st.endswith('</w>'):
+            if sub_ends is False:
+                tokens[-1] = tokens[-1] + st[:-4]
+                word_ids.append(word_ids[-1])
+            else:
+                tokens.append(st[:-4])
+                word_ids.append(word_id)
+            sub_ends = True
+        else:
+            if sub_ends is False:
+                word_ids.append(word_ids[-1])
+            else:
+                word_ids.append(word_id)
+            tokens.append(st)
+            sub_ends = False
+        print(tokens)
+        print(word_ids)
+
+
+def tokenize_and_align_labels(examples, tokenizer, label_all_tokens=True,
+                              max_length: int = 512):
+    tokenized_inputs = tokenizer(examples["sentence"], max_length=max_length,
+                                 truncation=True, is_split_into_words=True)
 
     labels = []
     words = []
     for i, label in enumerate(examples["word_labels"]):
-        word_ids = tokenized_inputs.word_ids(batch_index=i)
+        try:
+            word_ids = tokenized_inputs.word_ids(batch_index=i)
+        except ValueError:
+            word_ids = None
         previous_word_idx = None
         label_ids = []
         for word_idx in word_ids:
