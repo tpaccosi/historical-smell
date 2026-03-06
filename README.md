@@ -19,7 +19,7 @@ This repository presents the results of our experiments on **olfactory frame ext
   Scripts to create **train/dev/test folds** and to generate **subsets of the training data** for experiments studying the **impact of training size**.
 
 - **Span Detection Results**
-  `partial_matches-start_end_early_late' shows the results of the span analysis in terms of start and end matches.
+  `partial_matches-start_end_early_late` shows the results of the span analysis in terms of start and end matches.
 
 ### Model Availability
 
